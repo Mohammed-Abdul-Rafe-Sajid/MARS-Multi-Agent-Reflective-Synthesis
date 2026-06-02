@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables (SENSITIVE!)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+Thumbs.db
+.DS_Store
+*.lnk
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Node
+frontend/node_modules/
+frontend/.npm
+frontend/build/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Database
+research_system.db
+*.db
+*.sqlite
+*.sqlite3
+
+# ChromaDB (cache only, not source)
+chromadb_store/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+temp/
+tmp/
+
+# Mac
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# PDFs and large files
+*.pdf
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Models and weights
+models/
+weights/
+checkpoints/
+*.bin
+*.pt
+*.pth
+
+# Datasets
+datasets/
+data/
+*.csv
+*.tsv
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# FastAPI/Uvicorn
+*.sock
