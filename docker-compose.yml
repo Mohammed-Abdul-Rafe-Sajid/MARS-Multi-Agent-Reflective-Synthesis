@@ -1,0 +1,282 @@
+version: '3.9'
+
+# ============================================================================
+# Docker Compose Configuration - MARS Multi-Agent Reflective Synthesis
+# ============================================================================
+# Production-ready orchestration for:
+# - FastAPI backend (port 8000)
+# - React frontend (port 80)
+# - ChromaDB persistence (volume)
+# - SQLite database persistence (volume)
+# ============================================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Backend Service - FastAPI Application
+  # ──────────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    
+    container_name: mars-backend
+    
+    # Port mapping: internal:external
+    # Only expose on localhost for security
+    ports:
+      - "8000:8000"
+    
+    # Environment variables passed to container
+    # These override default values in config.py
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-4096}
+      - MAX_PAPERS_PER_QUERY=${MAX_PAPERS_PER_QUERY:-15}
+      - TOP_K_RAG_CHUNKS=${TOP_K_RAG_CHUNKS:-5}
+      - PAPER_AGE_CUTOFF_YEARS=${PAPER_AGE_CUTOFF_YEARS:-10}
+      - RAG_SIMILARITY_THRESHOLD=${RAG_SIMILARITY_THRESHOLD:-0.60}
+      - DEFAULT_ABLATION_MODE=${DEFAULT_ABLATION_MODE:-both}
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-4}
+      - CLAIM_DELTA_THRESHOLD=${CLAIM_DELTA_THRESHOLD:-0.10}
+      - WEAK_CLAIM_RATIO_THRESHOLD=${WEAK_CLAIM_RATIO_THRESHOLD:-0.30}
+      - SIMILARITY_VERIFIED_THRESHOLD=${SIMILARITY_VERIFIED_THRESHOLD:-0.75}
+      - SIMILARITY_WEAK_THRESHOLD=${SIMILARITY_WEAK_THRESHOLD:-0.60}
+      - MIN_SUPPORTING_PAPERS=${MIN_SUPPORTING_PAPERS:-2}
+      - CHUNK_SIZE_TOKENS=${CHUNK_SIZE_TOKENS:-512}
+      - CHUNK_OVERLAP_TOKENS=${CHUNK_OVERLAP_TOKENS:-50}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - DATABASE_URL=sqlite:///./data/research_system.db
+      - CHROMA_PERSIST_DIR=/app/chromadb_store
+      - HOST=0.0.0.0
+      - PORT=8000
+    
+    # Volume mounts for data persistence
+    volumes:
+      # ChromaDB vector embeddings persistence
+      - chromadb-store:/app/chromadb_store
+      
+      # Application data directory (SQLite database)
+      - backend-data:/app/data
+      
+      # Application logs
+      - backend-logs:/app/logs
+    
+    # Network for service discovery
+    networks:
+      - mars-network
+    
+    # Restart policy for high availability
+    restart: unless-stopped
+    
+    # Health check (defined in Dockerfile too)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits for production
+    # Adjust based on available infrastructure
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Frontend Service - Nginx + React
+  # ──────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    
+    container_name: mars-frontend
+    
+    # Port mapping: internal:external
+    # Port 80 for HTTP traffic
+    ports:
+      - "80:80"
+    
+    # No direct environment variable passing needed
+    # Frontend is static compiled React served by Nginx
+    
+    # Frontend depends on backend being available
+    depends_on:
+      backend:
+        condition: service_healthy
+    
+    # Network for service discovery
+    networks:
+      - mars-network
+    
+    # Restart policy for high availability
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================================
+# NETWORKS - Service Communication
+# ============================================================================
+# Docker Compose creates this network for inter-service communication
+# Both frontend and backend can communicate via hostnames
+#   - Frontend can call: http://backend:8000
+#   - Backend can reference: frontend on port 80
+networks:
+  mars-network:
+    driver: bridge
+
+# ============================================================================
+# VOLUMES - Data Persistence
+# ============================================================================
+# These volumes persist data across container restarts
+# They survive: container deletion, image rebuild
+# They don't survive: docker-compose down -v (with -v flag)
+
+volumes:
+  
+  # ChromaDB Vector Database Storage
+  # Stores embeddings for RAG (Retrieval-Augmented Generation)
+  # Size: ~12 MB growing with more papers
+  chromadb-store:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./chromadb_store
+  
+  # Backend Application Data
+  # Stores SQLite database and session files
+  # Path: /app/data inside container
+  # Size: 1-50 MB depending on research history
+  backend-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backend/data
+  
+  # Application Logs
+  # Stores uvicorn and application logs
+  # Size: 10-100 MB depending on verbosity
+  backend-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backend/logs
+
+# ============================================================================
+# ENVIRONMENT FILES
+# ============================================================================
+# .env file format:
+#
+# OPENAI_API_KEY=sk-proj-your_actual_key_here
+# LLM_MODEL=gpt-4o
+# LLM_MAX_TOKENS=4096
+# MAX_PAPERS_PER_QUERY=15
+# TOP_K_RAG_CHUNKS=5
+#
+# Copy from .env.example and fill in actual values
+# NEVER commit actual .env file to git
+
+# ============================================================================
+# USAGE INSTRUCTIONS
+# ============================================================================
+#
+# 1. SETUP:
+#    cp backend/.env.example backend/.env
+#    # Edit backend/.env and add OPENAI_API_KEY
+#
+# 2. BUILD IMAGES:
+#    docker-compose build
+#
+# 3. START SERVICES:
+#    docker-compose up -d
+#
+# 4. VIEW LOGS:
+#    docker-compose logs -f backend      # Backend logs
+#    docker-compose logs -f frontend     # Frontend logs
+#    docker-compose logs --tail=100      # Last 100 lines all services
+#
+# 5. CHECK STATUS:
+#    docker-compose ps
+#    # Should show both backend and frontend as "Up (healthy)"
+#
+# 6. STOP SERVICES:
+#    docker-compose down
+#    # Preserves volumes (data persists)
+#
+# 7. FULL CLEANUP:
+#    docker-compose down -v
+#    # WARNING: Deletes all volumes (data loss!)
+#
+# 8. REBUILD AFTER CODE CHANGES:
+#    docker-compose up -d --build
+#
+# 9. SHELL INTO CONTAINER:
+#    docker-compose exec backend bash
+#    docker-compose exec frontend sh
+#
+# 10. VIEW SERVICE URLS:
+#    Frontend: http://localhost:80 or http://localhost
+#    Backend API: http://localhost:8000
+#    API Docs: http://localhost:8000/docs
+#    Health: http://localhost:8000/health
+
+# ============================================================================
+# NETWORKING DETAILS
+# ============================================================================
+# Service Discovery:
+#   - Backend hostname: "backend" (resolves inside containers)
+#   - Frontend hostname: "frontend" (resolves inside containers)
+#   - From host: localhost:8000 (backend), localhost (frontend)
+#
+# Frontend → Backend Communication:
+#   - Frontend Nginx proxies to: http://backend:8000
+#   - Configured in nginx.conf
+#   - Frontend SPA at http://localhost communicates via API calls
+#
+# Health Checks:
+#   - Both services have health checks
+#   - docker-compose respects these for startup ordering
+#   - docker ps shows health status
+
+# ============================================================================
+

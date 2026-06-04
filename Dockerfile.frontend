@@ -1,0 +1,122 @@
+# ============================================================================
+# Dockerfile.frontend - Production-Ready React TypeScript Frontend Container
+# ============================================================================
+# Multi-stage build: Node builder → Nginx server
+# Optimized for minimal production image size and security
+# ============================================================================
+
+# ──────────────────────────────────────────────────────────────────────────
+# STAGE 1: Builder - Build React TypeScript application
+# ──────────────────────────────────────────────────────────────────────────
+FROM node:22-alpine as builder
+
+WORKDIR /app
+
+# Set environment variables for Node
+ENV GENERATE_SOURCEMAP=false
+
+# Copy package files
+COPY frontend/package.json frontend/package-lock.json ./
+
+# Install dependencies (with devDependencies - needed for TypeScript compilation)
+# --legacy-peer-deps: Handles peer dependency warnings
+# ci: Clean install (reproducible, uses package-lock.json)
+RUN npm ci --legacy-peer-deps
+
+# Copy source code
+COPY frontend/src ./src
+COPY frontend/public ./public
+COPY frontend/tsconfig.json ./tsconfig.json
+
+# Set production environment for build
+ENV NODE_ENV=production
+
+# Build the React application for production
+# Creates optimized build output in /app/build directory
+RUN npm run build
+
+# Verify build output exists
+RUN test -d /app/build || (echo "Build failed: /app/build not found" && exit 1)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# STAGE 2: Runtime - Nginx server to serve built React application
+# ──────────────────────────────────────────────────────────────────────────
+FROM nginx:alpine
+
+# Set labels for container metadata
+LABEL maintainer="MARS Team" \
+      description="MARS Frontend - Multi-Agent Reflective Synthesis React UI" \
+      version="1.0"
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy built React application from builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Create directory for nginx logs
+RUN mkdir -p /var/log/nginx
+
+# Health check - ensures Nginx is responsive
+# Checks if the root path returns HTTP 200
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+
+# Expose port for web traffic
+EXPOSE 80
+
+# Start Nginx in foreground mode (required for Docker)
+# foreground: Nginx doesn't fork to background
+# This prevents the container from exiting immediately
+CMD ["nginx", "-g", "daemon off;"]
+
+# ============================================================================
+# NOTES:
+# ─────
+# 1. Multi-stage build optimization:
+#    • Builder stage (~1.2GB): Node, npm, build tools, source
+#    • Final image (~20MB): Only Nginx + built files
+#    • 99% size reduction vs including builder stage
+#
+# 2. Node 22 Alpine advantages:
+#    • Alpine Linux: ~5MB (vs ~900MB for Node 22 full)
+#    • Node 22: Latest LTS with all modern features
+#    • npm ci: Reproducible builds (uses package-lock.json)
+#
+# 3. Nginx Alpine advantages:
+#    • ~9MB base image (vs ~30MB for standard)
+#    • Lightweight reverse proxy perfections
+#    • Serves static React build efficiently
+#
+# 4. Build process:
+#    • npm ci: Clean, reproducible install
+#    • NODE_ENV=production: Optimizations enabled
+#    • GENERATE_SOURCEMAP=false: Smaller build (~30% reduction)
+#    • npm run build: Creates optimized production build
+#    • Verification: Checks build directory exists
+#
+# 5. Environment handling:
+#    • Frontend communicates with backend at http://localhost:8000
+#    • Nginx proxies /api calls to backend
+#    • No hardcoded API URLs (flexible for any deployment)
+#    • Runtime environment via docker-compose
+#
+# 6. Nginx configuration (from nginx.conf):
+#    • Handles React Router SPA routing
+#    • Proxies /api calls to backend
+#    • Serves static files with caching headers
+#    • Gzip compression enabled
+#    • Security headers configured
+#
+# 7. No secrets in image:
+#    • .env NOT copied to image
+#    • No API keys embedded
+#    • Environment variables passed at runtime
+#    • Credentials passed via docker-compose or K8s
+#
+# 8. Health check:
+#    • Docker uses for restart policies
+#    • Critical for orchestration platforms
+#    • Checks if Nginx responds to HTTP GET /
+# ============================================================================

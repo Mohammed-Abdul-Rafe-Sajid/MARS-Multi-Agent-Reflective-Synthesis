@@ -38,4 +38,10 @@ async def startup():
     logger.info("Database initialised. Server ready.")
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for container orchestration."""
+    return {"status": "ok", "version": "3.0.0"}
+
+
 app.include_router(router, prefix="/api/v1")

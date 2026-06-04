@@ -115,3 +115,11 @@ data/
 
 # FastAPI/Uvicorn
 *.sock
+
+# Setup and Summary Documentation (local only)
+DOCKER_SETUP_COMPLETE.md
+DOCKER_DEPLOYMENT_GUIDE.md
+FIX_ZERO_METRICS.md
+GITHUB_PREP_SUMMARY.md
+GITHUB_PUSH_GUIDE.md
+PROJECT_STRUCTURE.md
