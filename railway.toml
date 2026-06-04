@@ -1,0 +1,69 @@
+# ============================================================================
+# railway.toml - Railway Native Configuration
+# ============================================================================
+# Multi-service configuration for MARS platform on Railway
+# Defines backend and frontend services with networking and persistence
+# ============================================================================
+
+# Global configuration
+[build]
+  # For the primary (backend) service
+  builder = "dockerfile"
+  dockerfile = "Dockerfile"  # Root Dockerfile for backend
+
+[deploy]
+  # Railway provides PORT environment variable automatically
+  # Override with explicit configuration for reliability
+  startCommand = "python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1 --log-level info"
+  
+  # Health check for Railway's load balancer
+  healthcheckPath = "/health"
+  healthcheckTimeout = 30
+  
+  # Restart policy
+  restartPolicyCondition = "on-failure"
+  restartPolicyMaxRetryCount = 5
+
+# Environment variables passed to container
+[env]
+  # These override defaults - actual values set in Railway dashboard
+  PYTHONUNBUFFERED = "1"
+  PYTHONDONTWRITEBYTECODE = "1"
+  
+  # Database configuration
+  DATABASE_URL = "sqlite:///./data/research_system.db"
+  CHROMA_PERSIST_DIR = "/app/data/chromadb_store"
+  
+  # LLM defaults (can be overridden)
+  LLM_MODEL = "gpt-4o"
+  LLM_MAX_TOKENS = "4096"
+  
+  # Retrieval defaults
+  MAX_PAPERS_PER_QUERY = "15"
+  TOP_K_RAG_CHUNKS = "5"
+  PAPER_AGE_CUTOFF_YEARS = "10"
+  RAG_SIMILARITY_THRESHOLD = "0.60"
+  DEFAULT_ABLATION_MODE = "both"
+  
+  # Reflection defaults
+  MAX_ITERATIONS = "4"
+  CLAIM_DELTA_THRESHOLD = "0.10"
+  WEAK_CLAIM_RATIO_THRESHOLD = "0.30"
+  
+  # Verifier defaults
+  SIMILARITY_VERIFIED_THRESHOLD = "0.75"
+  SIMILARITY_WEAK_THRESHOLD = "0.60"
+  MIN_SUPPORTING_PAPERS = "2"
+  
+  # Embedding/Chunking defaults
+  CHUNK_SIZE_TOKENS = "512"
+  CHUNK_OVERLAP_TOKENS = "50"
+  EMBEDDING_MODEL = "text-embedding-3-small"
+
+# Volumeswill be handled via Railway's file storage
+# No local bind mounts needed for production
+
+# Reference:
+# - OPENAI_API_KEY: Set via Railway Variables (secret)
+# - Database files: Persisted in Railway's file storage
+# - ChromaDB: Persisted in Railway's file storage
