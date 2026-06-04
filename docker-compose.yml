@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3.8'
 
 # ============================================================================
 # Docker Compose Configuration - MARS Multi-Agent Reflective Synthesis
@@ -72,11 +72,11 @@ services:
     
     # Health check (defined in Dockerfile too)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     
     # Resource limits for production
     # Adjust based on available infrastructure
@@ -128,11 +128,11 @@ services:
     
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "sh", "-c", "test -f /var/run/nginx.pid && ps aux | grep -q '[n]ginx'"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 15s
     
     # Resource limits
     deploy:

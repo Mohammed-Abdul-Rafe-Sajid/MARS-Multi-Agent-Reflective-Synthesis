@@ -56,22 +56,21 @@ RUN mkdir -p /app/chromadb_store \
     && mkdir -p /app/logs
 
 # Health check - ensures container is responsive
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Expose port for FastAPI application
 EXPOSE 8000
 
 # Run FastAPI with Uvicorn in production mode
 # - host 0.0.0.0: accessible from outside container
-# - workers 4: parallel request handling (adjust based on CPU cores)
-# - no-reload: production setting (no auto-restart on file changes)
+# - workers 1: single worker (Railway has limited resources, use more if needed)
 # - log-level info: standard logging for production
 CMD ["python", "-m", "uvicorn", \
      "main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
-     "--workers", "4", \
+     "--workers", "1", \
      "--log-level", "info"]
 
 # ============================================================================
