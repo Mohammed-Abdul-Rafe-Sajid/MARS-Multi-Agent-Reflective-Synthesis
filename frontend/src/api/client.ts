@@ -1,6 +1,8 @@
 import type { RunQueryResponse, GetResultResponse, GetMetricsResponse, GetIterationsResponse, AblationMode } from '../types';
 
-const BASE = 'http://localhost:8000/api/v1';
+// Use environment variable for backend URL, fall back to localhost for development
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+const BASE = `${BACKEND_URL}/api/v1`;
 
 async function req<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, { headers: { 'Content-Type': 'application/json' }, ...opts });
