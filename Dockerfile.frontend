@@ -24,9 +24,8 @@ COPY frontend/package.json ./
 
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
 # --legacy-peer-deps: Handles peer dependency warnings
-# Note: Using npm install (not npm ci) for flexibility when lock file isn't present
-# Install dev dependencies which includes TypeScript
-RUN npm install --legacy-peer-deps
+# --production=false: Explicitly install dev dependencies
+RUN npm install --legacy-peer-deps --production=false
 
 # Copy source code
 COPY frontend/src ./src
