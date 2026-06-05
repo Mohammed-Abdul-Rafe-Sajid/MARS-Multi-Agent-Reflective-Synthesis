@@ -23,8 +23,12 @@ ENV GENERATE_SOURCEMAP=false \
 COPY frontend/package.json ./
 
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
-# --legacy-peer-deps: Handles peer dependency conflicts gracefully (better than --force)
+# --legacy-peer-deps: Handles peer dependency conflicts gracefully
 RUN npm install --legacy-peer-deps
+
+# Explicitly install ajv@^8 to ensure ajv-keywords can find it
+# This resolves the "Cannot find module 'ajv/dist/compile/codegen'" error
+RUN npm install --save-dev ajv@^8 --legacy-peer-deps || true
 
 # Copy source code
 COPY frontend/src ./src
