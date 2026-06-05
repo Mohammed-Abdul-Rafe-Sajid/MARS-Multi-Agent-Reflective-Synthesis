@@ -23,9 +23,10 @@ ENV GENERATE_SOURCEMAP=false \
 COPY frontend/package.json ./
 
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
-# --legacy-peer-deps: Handles peer dependency warnings
+# --legacy-peer-deps: Ignore peer dependency warnings
 # --production=false: Explicitly install dev dependencies
-RUN npm install --legacy-peer-deps --production=false
+# --force: Force installation even if there are conflicts
+RUN npm install --legacy-peer-deps --production=false --force
 
 # Copy source code
 COPY frontend/src ./src
