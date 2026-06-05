@@ -12,27 +12,30 @@ FROM node:22-alpine as builder
 
 WORKDIR /app
 
+# Build arguments - backend URL can be passed during build
+ARG REACT_APP_BACKEND_URL=http://localhost:8000
+
 # Set environment variables for Node
-ENV GENERATE_SOURCEMAP=false
+ENV GENERATE_SOURCEMAP=false \
+    NODE_ENV=production \
+    REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
 
 # Copy package files
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/package.json ./
 
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
 # --legacy-peer-deps: Handles peer dependency warnings
-# ci: Clean install (reproducible, uses package-lock.json)
-RUN npm ci --legacy-peer-deps
+# Note: Using npm install (not npm ci) for flexibility when lock file isn't present
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY frontend/src ./src
 COPY frontend/public ./public
 COPY frontend/tsconfig.json ./tsconfig.json
 
-# Set production environment for build
-ENV NODE_ENV=production
-
 # Build the React application for production
 # Creates optimized build output in /app/build directory
+# REACT_APP_BACKEND_URL injected here at build time
 RUN npm run build
 
 # Verify build output exists
@@ -97,7 +100,9 @@ CMD ["nginx", "-g", "daemon off;"]
 #    • Verification: Checks build directory exists
 #
 # 5. Environment handling:
-#    • Frontend communicates with backend at http://localhost:8000
+#    • REACT_APP_BACKEND_URL: Backend API URL (configurable at build time)
+#    • Default: http://localhost:8000 (for local/docker-compose development)
+#    • For production: Pass --build-arg REACT_APP_BACKEND_URL=https://mars-i690.onrender.com
 #    • Nginx proxies /api calls to backend
 #    • No hardcoded API URLs (flexible for any deployment)
 #    • Runtime environment via docker-compose
