@@ -34,7 +34,9 @@ COPY frontend/public ./public
 COPY frontend/tsconfig.json ./tsconfig.json
 
 # Set production environment for optimized build
-ENV NODE_ENV=production
+# CI=false: Prevent treating warnings as errors (needed for builds in Docker/CI)
+ENV NODE_ENV=production \
+    CI=false
 
 # Build the React application for production
 # Creates optimized build output in /app/build directory
