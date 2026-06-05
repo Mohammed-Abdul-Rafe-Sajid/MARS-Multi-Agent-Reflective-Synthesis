@@ -15,9 +15,8 @@ WORKDIR /app
 # Build arguments - backend URL can be passed during build
 ARG REACT_APP_BACKEND_URL=http://localhost:8000
 
-# Set environment variables for Node
+# Set environment variables for Node (but NOT NODE_ENV yet - we need devDependencies)
 ENV GENERATE_SOURCEMAP=false \
-    NODE_ENV=production \
     REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
 
 # Copy package files
@@ -26,12 +25,16 @@ COPY frontend/package.json ./
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
 # --legacy-peer-deps: Handles peer dependency warnings
 # Note: Using npm install (not npm ci) for flexibility when lock file isn't present
+# Install dev dependencies which includes TypeScript
 RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY frontend/src ./src
 COPY frontend/public ./public
 COPY frontend/tsconfig.json ./tsconfig.json
+
+# Set production environment for optimized build
+ENV NODE_ENV=production
 
 # Build the React application for production
 # Creates optimized build output in /app/build directory
