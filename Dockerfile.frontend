@@ -12,15 +12,18 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
-# Build arguments - backend URL can be passed during build
-ARG REACT_APP_BACKEND_URL=http://localhost:8000
+# Build arguments - backend URL can be passed during build (optional)
+# If not provided, .env.production file will provide the production URL
+ARG REACT_APP_BACKEND_URL
 
-# Set environment variables for Node (but NOT NODE_ENV yet - we need devDependencies)
-ENV GENERATE_SOURCEMAP=false \
-    REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+# Set environment variables for Node
+ENV GENERATE_SOURCEMAP=false
 
 # Copy package files
 COPY frontend/package.json ./
+
+# Copy environment configuration for production build
+COPY .env.production ./
 
 # Install dependencies (with devDependencies - needed for TypeScript compilation)
 # --legacy-peer-deps: Handles peer dependency conflicts gracefully
